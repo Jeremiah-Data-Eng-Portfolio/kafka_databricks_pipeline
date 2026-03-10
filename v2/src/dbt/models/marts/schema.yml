@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: fct_chat_messages
+    description: "Primary fact table for chat-level analytics"
+    columns:
+      - name: message_id
+        tests: [not_null, unique]
+
+  - name: fct_chat_metrics_by_minute
+    description: "Minute-level KPI aggregate for dashboard consumption"
+    columns:
+      - name: minute
+        tests: [not_null, unique]
+
+  - name: fct_stakeholder_engagement_metrics
+    description: "Stakeholder-facing so-what metrics for creator operations and moderation"
+    columns:
+      - name: minute
+        tests: [not_null, unique]
+      - name: total_messages
+        tests: [not_null]
+      - name: active_chatters
+        tests: [not_null]
+      - name: chat_engagement_rate
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "BETWEEN 0 AND 1"
+      - name: spam_risk_rate
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "BETWEEN 0 AND 1"

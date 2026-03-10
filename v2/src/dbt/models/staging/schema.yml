@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: silver
+    database: workspace
+    schema: twitch_pipeline_silver
+    tables:
+      - name: twitch_chat_parsed
+        description: "Silver contract table for validated chat events"
+
+models:
+  - name: stg_twitch_chat_events
+    description: "Staging model enforcing column-level expectations"
+    columns:
+      - name: topic
+        tests: [not_null]
+      - name: partition
+        tests: [not_null]
+      - name: offset
+        tests: [not_null]
+      - name: user
+        tests: [not_null]
+      - name: message
+        tests: [not_null]
+      - name: sent_compound
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "BETWEEN -1.0 AND 1.0"

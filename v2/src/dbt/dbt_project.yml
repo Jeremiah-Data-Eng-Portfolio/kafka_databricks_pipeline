@@ -1,0 +1,23 @@
+name: "twitch_chat_pipeline_v2"
+version: "1.0.0"
+profile: "twitch_chat_pipeline"
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  twitch_chat_pipeline_v2:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+flags:
+  require_generic_test_arguments_property: true

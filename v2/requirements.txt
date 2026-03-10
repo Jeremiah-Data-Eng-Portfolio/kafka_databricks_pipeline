@@ -1,0 +1,11 @@
+# v2 runtime dependencies for Databricks job tasks.
+#
+# Usage in Databricks job setup:
+# - Point your job/library installation to this file
+# - Run from repo subdir `v2` so `-e .` resolves correctly
+
+# Install project package so imports like `streaming.*` and `producer.*` resolve.
+-e .
+
+# Kafka producer client used by v2/src/producer/twitch_producer.py
+kafka-python>=2.0.2,<3.0.0

@@ -1,0 +1,53 @@
+# Databricks Asset Bundles-style job config for v2 streaming tasks.
+# Assumes this repo is connected as a Git source in Databricks.
+
+resources:
+  jobs:
+    twitch_chat_v2_streaming:
+      name: twitch_chat_v2_streaming
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: bronze_ingest
+          spark_python_task:
+            python_file: v2/scripts/run_bronze_job.py
+            source: GIT
+          existing_cluster_id: ${var.cluster_id}
+          libraries:
+            - requirements: v2/requirements.txt
+          timeout_seconds: 0
+
+        - task_key: silver_parse
+          depends_on:
+            - task_key: bronze_ingest
+          spark_python_task:
+            python_file: v2/scripts/run_silver_parse_job.py
+            source: GIT
+          existing_cluster_id: ${var.cluster_id}
+          libraries:
+            - requirements: v2/requirements.txt
+          timeout_seconds: 0
+
+        - task_key: silver_features
+          depends_on:
+            - task_key: silver_parse
+          spark_python_task:
+            python_file: v2/scripts/run_silver_features_job.py
+            source: GIT
+          existing_cluster_id: ${var.cluster_id}
+          libraries:
+            - requirements: v2/requirements.txt
+          timeout_seconds: 0
+
+      # Environment variables consumed by ProducerConfig / StreamingJobConfig.
+      # For Confluent Cloud, set:
+      # - KAFKA_SECURITY_PROTOCOL=SASL_SSL
+      # - KAFKA_SASL_MECHANISM=PLAIN
+      # - API_KEY / API_SECRET (from Databricks secret scopes)
+      job_clusters: []
+
+variables:
+  cluster_id:
+    description: Existing Databricks cluster id for running streaming tasks
+  app_env:
+    description: Runtime environment label
+    default: dev
