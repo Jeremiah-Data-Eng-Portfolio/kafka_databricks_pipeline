@@ -67,16 +67,16 @@ def _bool_env(name: str, default: bool) -> bool:
 
 
 def load_streaming_config() -> StreamingJobConfig:
+    raise ValueError("DEBUG BUILD 2 LOADED")
+
     kafka_security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_SSL").strip()
     kafka_sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").strip()
-    api_key = os.getenv("API_KEY", "").strip()
-    api_secret = os.getenv("API_SECRET", "").strip()
+    api_key = ""
+    api_secret = ""
 
     if kafka_security_protocol.upper().startswith("SASL"):
-        if not api_key:
-            raise ValueError("DEBUG: Missing required environment variable: API_KEY")
-        if not api_secret:
-            raise ValueError("DEBUG: Missing required environment variable: API_SECRET")
+        api_key = _require_env("API_KEY")
+        api_secret = _require_env("API_SECRET")
 
     return StreamingJobConfig(
         environment=os.getenv("APP_ENV", "dev"),
