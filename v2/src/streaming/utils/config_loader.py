@@ -11,8 +11,8 @@ class StreamingJobConfig:
     kafka_raw_topic: str
     kafka_security_protocol: str
     kafka_sasl_mechanism: str
-    kafka_api_key: str
-    kafka_api_secret: str
+    api_key: str
+    api_secret: str
     bronze_table: str
     silver_parsed_table: str
     silver_features_table: str
@@ -27,8 +27,8 @@ class StreamingJobConfig:
         return self.kafka_security_protocol.upper().startswith("SASL")
 
     def kafka_sasl_jaas_config(self) -> str:
-        username = self.kafka_api_key.replace("\\", "\\\\").replace('"', '\\"')
-        password = self.kafka_api_secret.replace("\\", "\\\\").replace('"', '\\"')
+        username = self.api_key.replace("\\", "\\\\").replace('"', '\\"')
+        password = self.api_secret.replace("\\", "\\\\").replace('"', '\\"')
         return (
             "org.apache.kafka.common.security.plain.PlainLoginModule required "
             f'username="{username}" password="{password}";'
@@ -74,9 +74,9 @@ def load_streaming_config() -> StreamingJobConfig:
 
     if kafka_security_protocol.upper().startswith("SASL"):
         if not api_key:
-            raise ValueError("Missing required environment variable: API_KEY")
+            raise ValueError("DEBUG: Missing required environment variable: API_KEY")
         if not api_secret:
-            raise ValueError("Missing required environment variable: API_SECRET")
+            raise ValueError("DEBUG: Missing required environment variable: API_SECRET")
 
     return StreamingJobConfig(
         environment=os.getenv("APP_ENV", "dev"),
@@ -84,8 +84,8 @@ def load_streaming_config() -> StreamingJobConfig:
         kafka_raw_topic=os.getenv("KAFKA_RAW_TOPIC", "twitch_chat_raw"),
         kafka_security_protocol=kafka_security_protocol,
         kafka_sasl_mechanism=kafka_sasl_mechanism,
-        kafka_api_key=api_key,
-        kafka_api_secret=api_secret,
+        api_key=api_key,
+        api_secret=api_secret,
         bronze_table=os.getenv("BRONZE_TABLE", "twitch_pipeline.bronze.bronze_chat_raw"),
         silver_parsed_table=os.getenv("SILVER_PARSED_TABLE", "twitch_pipeline.silver.silver_chat_parsed"),
         silver_features_table=os.getenv("SILVER_FEATURES_TABLE", "twitch_pipeline.silver.silver_chat_features"),
