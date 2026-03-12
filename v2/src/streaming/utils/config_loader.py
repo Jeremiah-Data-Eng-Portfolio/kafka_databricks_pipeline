@@ -67,8 +67,7 @@ def _bool_env(name: str, default: bool) -> bool:
 
 
 def load_streaming_config() -> StreamingJobConfig:
-    raise ValueError("DEBUG BUILD 2 LOADED")
-
+    
     kafka_security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_SSL").strip()
     kafka_sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").strip()
     api_key = ""
