@@ -59,6 +59,7 @@ def run(spark: Any | None = None) -> Any:
     )
     return (
         bronze_df.writeStream.format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", cfg.bronze_checkpoint)
         .toTable(cfg.bronze_table)

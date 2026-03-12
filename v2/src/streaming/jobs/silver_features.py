@@ -102,6 +102,7 @@ def run(spark: Any | None = None) -> Any:
 
     return (
         feature_df.writeStream.format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", cfg.silver_features_checkpoint)
         .toTable(cfg.silver_features_table)

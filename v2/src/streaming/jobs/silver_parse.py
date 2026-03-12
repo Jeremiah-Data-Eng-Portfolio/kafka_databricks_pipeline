@@ -173,6 +173,7 @@ def run(spark: Any | None = None) -> tuple[Any, Any]:
 
     silver_query = (
         valid_df.writeStream.format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", cfg.silver_parse_checkpoint)
         .toTable(cfg.silver_parsed_table)
