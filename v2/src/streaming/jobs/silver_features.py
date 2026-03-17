@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from streaming.utils.batch_writes import stream_append_with_batch_metadata
 from streaming.utils.config_loader import StreamingJobConfig, load_streaming_config
 from streaming.utils.logging import get_logger
 
@@ -86,13 +87,20 @@ def run(spark: Any | None = None) -> Any:
 
     LOGGER.info(
         "silver_features_start",
-        extra={"context": {"table": cfg.silver_features_table, "expects_canonical_silver": True}},
+        extra={
+            "context": {
+                "table": cfg.silver_features_table,
+                "expects_canonical_silver": True,
+                "run_id": cfg.run_id,
+            }
+        },
     )
 
-    return (
-        feature_df.writeStream.format("delta")
-        .trigger(availableNow=True)
-        .outputMode("append")
-        .option("checkpointLocation", cfg.silver_features_checkpoint)
-        .toTable(cfg.silver_features_table)
+    return stream_append_with_batch_metadata(
+        stream_df=feature_df,
+        target_table=cfg.silver_features_table,
+        checkpoint_location=cfg.silver_features_checkpoint,
+        run_id=cfg.run_id,
+        job_name="silver_features",
+        available_now=True,
     )

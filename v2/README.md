@@ -159,6 +159,7 @@ For Confluent Cloud, the main settings are:
 
 Other important runtime variables used by the jobs include:
 
+- `RUN_ID` (explicit benchmark/run label attached to each landed micro-batch)
 - `KAFKA_RAW_TOPIC`
 - `BRONZE_TABLE`
 - `SILVER_PARSED_TABLE`

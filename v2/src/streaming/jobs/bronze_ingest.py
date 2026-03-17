@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from streaming.utils.config_loader import StreamingJobConfig, load_streaming_config
+from streaming.utils.batch_writes import stream_append_with_batch_metadata
 from streaming.utils.logging import get_logger
 
 LOGGER = get_logger("streaming.bronze_ingest")
@@ -55,12 +56,20 @@ def run(spark: Any | None = None) -> Any:
 
     LOGGER.info(
         "bronze_stream_start",
-        extra={"context": {"table": cfg.bronze_table, "append_only_raw": True}},
+        extra={
+            "context": {
+                "table": cfg.bronze_table,
+                "append_only_raw": True,
+                "run_id": cfg.run_id,
+            }
+        },
     )
-    return (
-        bronze_df.writeStream.format("delta")
-        .trigger(availableNow=True)
-        .outputMode("append")
-        .option("checkpointLocation", cfg.bronze_checkpoint)
-        .toTable(cfg.bronze_table)
+    # foreachBatch is used here only to stamp deterministic micro-batch metadata.
+    return stream_append_with_batch_metadata(
+        stream_df=bronze_df,
+        target_table=cfg.bronze_table,
+        checkpoint_location=cfg.bronze_checkpoint,
+        run_id=cfg.run_id,
+        job_name="bronze_ingest",
+        available_now=True,
     )

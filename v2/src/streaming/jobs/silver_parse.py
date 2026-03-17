@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from streaming.jobs.dlq_router import route_to_table
+from streaming.utils.batch_writes import stream_append_with_batch_metadata
 from streaming.utils.config_loader import StreamingJobConfig, load_streaming_config
 from streaming.utils.logging import get_logger
 
@@ -167,17 +168,26 @@ def run(spark: Any | None = None) -> tuple[Any, Any]:
                 "silver_table": cfg.silver_parsed_table,
                 "dlq_table": cfg.dlq_table,
                 "silver_dedupe_watermark": cfg.silver_dedupe_watermark,
+                "run_id": cfg.run_id,
             }
         },
     )
 
-    silver_query = (
-        valid_df.writeStream.format("delta")
-        .trigger(availableNow=True)
-        .outputMode("append")
-        .option("checkpointLocation", cfg.silver_parse_checkpoint)
-        .toTable(cfg.silver_parsed_table)
+    silver_query = stream_append_with_batch_metadata(
+        stream_df=valid_df,
+        target_table=cfg.silver_parsed_table,
+        checkpoint_location=cfg.silver_parse_checkpoint,
+        run_id=cfg.run_id,
+        job_name="silver_parse",
+        available_now=True,
     )
 
-    dlq_query = route_to_table(dlq_df, cfg.dlq_table, f"{cfg.silver_parse_checkpoint}_dlq")
+    dlq_query = route_to_table(
+        dlq_df=dlq_df,
+        table_name=cfg.dlq_table,
+        checkpoint_location=f"{cfg.silver_parse_checkpoint}_dlq",
+        trigger_available_now=True,
+        run_id=cfg.run_id,
+        job_name="silver_parse",
+    )
     return silver_query, dlq_query

@@ -6,6 +6,19 @@ REQUIRED_RAW_FIELDS = {
     "raw",
 }
 
+# Kafka transport metadata is not emitted by the producer payload itself.
+# These fields are appended by Spark Kafka ingestion in bronze_ingest.py.
+RAW_EVENT_TRANSPORT_FIELDS = {
+    "source_topic",
+    "source_partition",
+    "source_offset",
+    "kafka_timestamp",
+    "kafka_timestamp_type",
+    "raw_key",
+    "raw_payload",
+    "bronze_ingestion_ts",
+}
+
 RAW_EVENT_EXPECTED_SOURCE_FIELDS = {
     "platform",
     "protocol",
@@ -21,7 +34,12 @@ RAW_EVENT_EXPECTED_RAW_FIELDS = {
 
 
 def raw_event_schema_definition() -> dict:
-    """Permissive contract for raw capture at Bronze boundary."""
+    """Producer envelope contract carried inside `raw_payload`.
+
+    This describes the JSON payload emitted by `twitch_producer.py`.
+    Kafka coordinates (`topic/partition/offset`) are transport metadata added
+    by Bronze ingestion, not fields inside this payload object.
+    """
 
     return {
         "ingestion_ts": "timestamp",
@@ -46,3 +64,7 @@ def raw_event_schema_definition() -> dict:
 
 def raw_event_required_fields() -> set[str]:
     return set(REQUIRED_RAW_FIELDS)
+
+
+def raw_event_transport_fields() -> set[str]:
+    return set(RAW_EVENT_TRANSPORT_FIELDS)

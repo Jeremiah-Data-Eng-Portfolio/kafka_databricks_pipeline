@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StreamingJobConfig:
     environment: str
+    run_id: str
     kafka_bootstrap_servers: str
     kafka_raw_topic: str
     kafka_security_protocol: str
@@ -79,6 +80,7 @@ def load_streaming_config() -> StreamingJobConfig:
 
     return StreamingJobConfig(
         environment=os.getenv("APP_ENV", "dev"),
+        run_id=_require_env("RUN_ID"),
         kafka_bootstrap_servers=_require_env("KAFKA_BOOTSTRAP_SERVERS"),
         kafka_raw_topic=os.getenv("KAFKA_RAW_TOPIC", "twitch_chat_raw"),
         kafka_security_protocol=kafka_security_protocol,

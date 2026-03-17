@@ -1,53 +1,95 @@
-# Databricks Asset Bundles-style job config for v2 streaming tasks.
-# Assumes this repo is connected as a Git source in Databricks.
+# Databricks Jobs API templates (not Asset Bundles).
+#
+# Use these payloads with /api/2.1/jobs/create (or mirror fields in Jobs UI).
+# Design intent: three independent long-running streaming jobs.
+# Start order recommendation:
+#   1) bronze_ingest_job
+#   2) silver_parse_job (after Bronze is active)
+#   3) silver_features_job (after Silver parse is active)
+#
+# These jobs are intentionally separate so they can run concurrently after startup.
 
-resources:
-  jobs:
-    twitch_chat_v2_streaming:
-      name: twitch_chat_v2_streaming
-      max_concurrent_runs: 1
-      tasks:
-        - task_key: bronze_ingest
-          spark_python_task:
-            python_file: v2/scripts/run_bronze_job.py
-            source: GIT
-          existing_cluster_id: ${var.cluster_id}
-          libraries:
-            - requirements: v2/requirements.txt
-          timeout_seconds: 0
+bronze_ingest_job:
+  name: twitch_chat_v2_bronze_ingest
+  max_concurrent_runs: 1
+  git_source:
+    git_url: https://github.com/<org>/<repo>.git
+    git_provider: gitHub
+    git_branch: main
+  tasks:
+    - task_key: bronze_ingest
+      spark_python_task:
+        python_file: v2/scripts/run_bronze_job.py
+        source: GIT
+      existing_cluster_id: <cluster_id>
+      libraries:
+        - requirements: v2/requirements.txt
+      spark_env_vars:
+        APP_ENV: prod
+        RUN_ID: v2_baseline_real_backlog_2026_03_16
+        KAFKA_BOOTSTRAP_SERVERS: pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
+        KAFKA_RAW_TOPIC: twitch_chat_raw
+        KAFKA_SECURITY_PROTOCOL: SASL_SSL
+        KAFKA_SASL_MECHANISM: PLAIN
+        API_KEY: "{{secrets/pipeline-secrets/confluent-api-key}}"
+        API_SECRET: "{{secrets/pipeline-secrets/confluent-api-secret}}"
+        BRONZE_TABLE: twitch_pipeline.bronze.bronze_chat_raw
+        BRONZE_CHECKPOINT: /Volumes/twitch_pipeline/bronze/streaming_state/checkpoints/twitch_chat
 
-        - task_key: silver_parse
-          depends_on:
-            - task_key: bronze_ingest
-          spark_python_task:
-            python_file: v2/scripts/run_silver_parse_job.py
-            source: GIT
-          existing_cluster_id: ${var.cluster_id}
-          libraries:
-            - requirements: v2/requirements.txt
-          timeout_seconds: 0
+silver_parse_job:
+  name: twitch_chat_v2_silver_parse
+  max_concurrent_runs: 1
+  git_source:
+    git_url: https://github.com/<org>/<repo>.git
+    git_provider: gitHub
+    git_branch: main
+  tasks:
+    - task_key: silver_parse
+      spark_python_task:
+        python_file: v2/scripts/run_silver_parse_job.py
+        source: GIT
+      existing_cluster_id: <cluster_id>
+      libraries:
+        - requirements: v2/requirements.txt
+      spark_env_vars:
+        APP_ENV: prod
+        RUN_ID: v2_baseline_real_backlog_2026_03_16
+        KAFKA_BOOTSTRAP_SERVERS: pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
+        KAFKA_RAW_TOPIC: twitch_chat_raw
+        KAFKA_SECURITY_PROTOCOL: SASL_SSL
+        KAFKA_SASL_MECHANISM: PLAIN
+        API_KEY: "{{secrets/pipeline-secrets/confluent-api-key}}"
+        API_SECRET: "{{secrets/pipeline-secrets/confluent-api-secret}}"
+        BRONZE_TABLE: twitch_pipeline.bronze.bronze_chat_raw
+        SILVER_PARSED_TABLE: twitch_pipeline.silver.silver_chat_parsed
+        DLQ_TABLE: twitch_pipeline.silver.chat_dlq
+        SILVER_PARSE_CHECKPOINT: /Volumes/twitch_pipeline/silver/streaming_state/checkpoints/twitch_chat_parsed
+        SILVER_DEDUPE_WATERMARK: 2 hours
 
-        - task_key: silver_features
-          depends_on:
-            - task_key: silver_parse
-          spark_python_task:
-            python_file: v2/scripts/run_silver_features_job.py
-            source: GIT
-          existing_cluster_id: ${var.cluster_id}
-          libraries:
-            - requirements: v2/requirements.txt
-          timeout_seconds: 0
-
-      # Environment variables consumed by ProducerConfig / StreamingJobConfig.
-      # For Confluent Cloud, set:
-      # - KAFKA_SECURITY_PROTOCOL=SASL_SSL
-      # - KAFKA_SASL_MECHANISM=PLAIN
-      # - API_KEY / API_SECRET (from Databricks secret scopes)
-      job_clusters: []
-
-variables:
-  cluster_id:
-    description: Existing Databricks cluster id for running streaming tasks
-  app_env:
-    description: Runtime environment label
-    default: dev
+silver_features_job:
+  name: twitch_chat_v2_silver_features
+  max_concurrent_runs: 1
+  git_source:
+    git_url: https://github.com/<org>/<repo>.git
+    git_provider: gitHub
+    git_branch: main
+  tasks:
+    - task_key: silver_features
+      spark_python_task:
+        python_file: v2/scripts/run_silver_features_job.py
+        source: GIT
+      existing_cluster_id: <cluster_id>
+      libraries:
+        - requirements: v2/requirements.txt
+      spark_env_vars:
+        APP_ENV: prod
+        RUN_ID: v2_baseline_real_backlog_2026_03_16
+        KAFKA_BOOTSTRAP_SERVERS: pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
+        KAFKA_RAW_TOPIC: twitch_chat_raw
+        KAFKA_SECURITY_PROTOCOL: SASL_SSL
+        KAFKA_SASL_MECHANISM: PLAIN
+        API_KEY: "{{secrets/pipeline-secrets/confluent-api-key}}"
+        API_SECRET: "{{secrets/pipeline-secrets/confluent-api-secret}}"
+        SILVER_PARSED_TABLE: twitch_pipeline.silver.silver_chat_parsed
+        SILVER_FEATURES_TABLE: twitch_pipeline.silver.silver_chat_features
+        SILVER_FEATURES_CHECKPOINT: /Volumes/twitch_pipeline/silver/streaming_state/checkpoints/twitch_chat_features
