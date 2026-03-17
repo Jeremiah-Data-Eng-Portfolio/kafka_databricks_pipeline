@@ -40,6 +40,7 @@ Configure these in job/task environment variables (or secret scope references):
 - `SILVER_PARSED_TABLE`
 - `SILVER_FEATURES_TABLE`
 - `DLQ_TABLE`
+- `OPS_METRICS_TABLE` (optional, per-micro-batch benchmark metrics)
 - `BRONZE_CHECKPOINT`
 - `SILVER_PARSE_CHECKPOINT`
 - `SILVER_FEATURES_CHECKPOINT`

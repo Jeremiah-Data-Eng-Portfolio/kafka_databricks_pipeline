@@ -34,6 +34,7 @@ bronze_ingest_job:
         API_KEY: "{{secrets/pipeline-secrets/confluent-api-key}}"
         API_SECRET: "{{secrets/pipeline-secrets/confluent-api-secret}}"
         BRONZE_TABLE: twitch_pipeline.bronze.bronze_chat_raw
+        OPS_METRICS_TABLE: twitch_pipeline.ops.streaming_batch_metrics
         BRONZE_CHECKPOINT: /Volumes/twitch_pipeline/bronze/streaming_state/checkpoints/twitch_chat
 
 silver_parse_job:
@@ -63,6 +64,7 @@ silver_parse_job:
         BRONZE_TABLE: twitch_pipeline.bronze.bronze_chat_raw
         SILVER_PARSED_TABLE: twitch_pipeline.silver.silver_chat_parsed
         DLQ_TABLE: twitch_pipeline.silver.chat_dlq
+        OPS_METRICS_TABLE: twitch_pipeline.ops.streaming_batch_metrics
         SILVER_PARSE_CHECKPOINT: /Volumes/twitch_pipeline/silver/streaming_state/checkpoints/twitch_chat_parsed
         SILVER_DEDUPE_WATERMARK: 2 hours
 
@@ -92,4 +94,5 @@ silver_features_job:
         API_SECRET: "{{secrets/pipeline-secrets/confluent-api-secret}}"
         SILVER_PARSED_TABLE: twitch_pipeline.silver.silver_chat_parsed
         SILVER_FEATURES_TABLE: twitch_pipeline.silver.silver_chat_features
+        OPS_METRICS_TABLE: twitch_pipeline.ops.streaming_batch_metrics
         SILVER_FEATURES_CHECKPOINT: /Volumes/twitch_pipeline/silver/streaming_state/checkpoints/twitch_chat_features

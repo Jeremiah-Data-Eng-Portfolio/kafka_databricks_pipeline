@@ -61,6 +61,7 @@ def run(spark: Any | None = None) -> Any:
                 "table": cfg.bronze_table,
                 "append_only_raw": True,
                 "run_id": cfg.run_id,
+                "ops_metrics_table": cfg.ops_metrics_table or None,
             }
         },
     )
@@ -71,5 +72,6 @@ def run(spark: Any | None = None) -> Any:
         checkpoint_location=cfg.bronze_checkpoint,
         run_id=cfg.run_id,
         job_name="bronze_ingest",
+        ops_metrics_table=cfg.ops_metrics_table or None,
         available_now=True,
     )

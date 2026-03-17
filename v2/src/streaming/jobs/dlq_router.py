@@ -47,6 +47,7 @@ def route_to_table(
     trigger_available_now: bool = False,
     run_id: str | None = None,
     job_name: str = "dlq_router",
+    ops_metrics_table: str | None = None,
 ) -> Any:
     """Write DLQ rows to Delta sink in append mode."""
 
@@ -59,6 +60,7 @@ def route_to_table(
                 "trigger_available_now": trigger_available_now,
                 "batch_metadata_enabled": bool(run_id),
                 "job_name": job_name,
+                "ops_metrics_table": ops_metrics_table,
             }
         },
     )
@@ -69,6 +71,7 @@ def route_to_table(
             checkpoint_location=checkpoint_location,
             run_id=run_id,
             job_name=job_name,
+            ops_metrics_table=ops_metrics_table,
             available_now=trigger_available_now,
         )
     writer = (
@@ -88,6 +91,7 @@ def run(
     trigger_available_now: bool = False,
     run_id: str | None = None,
     job_name: str = "dlq_router",
+    ops_metrics_table: str | None = None,
 ) -> Any:
     """Job-style entrypoint for wiring DLQ sink in orchestration/tests."""
 
@@ -98,4 +102,5 @@ def run(
         trigger_available_now=trigger_available_now,
         run_id=run_id,
         job_name=job_name,
+        ops_metrics_table=ops_metrics_table,
     )

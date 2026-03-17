@@ -169,6 +169,7 @@ def run(spark: Any | None = None) -> tuple[Any, Any]:
                 "dlq_table": cfg.dlq_table,
                 "silver_dedupe_watermark": cfg.silver_dedupe_watermark,
                 "run_id": cfg.run_id,
+                "ops_metrics_table": cfg.ops_metrics_table or None,
             }
         },
     )
@@ -179,6 +180,7 @@ def run(spark: Any | None = None) -> tuple[Any, Any]:
         checkpoint_location=cfg.silver_parse_checkpoint,
         run_id=cfg.run_id,
         job_name="silver_parse",
+        ops_metrics_table=cfg.ops_metrics_table or None,
         available_now=True,
     )
 
@@ -189,5 +191,6 @@ def run(spark: Any | None = None) -> tuple[Any, Any]:
         trigger_available_now=True,
         run_id=cfg.run_id,
         job_name="silver_parse",
+        ops_metrics_table=cfg.ops_metrics_table or None,
     )
     return silver_query, dlq_query

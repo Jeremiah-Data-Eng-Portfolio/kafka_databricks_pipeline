@@ -18,6 +18,7 @@ class StreamingJobConfig:
     silver_parsed_table: str
     silver_features_table: str
     dlq_table: str
+    ops_metrics_table: str
     bronze_checkpoint: str
     silver_parse_checkpoint: str
     silver_features_checkpoint: str
@@ -91,6 +92,7 @@ def load_streaming_config() -> StreamingJobConfig:
         silver_parsed_table=os.getenv("SILVER_PARSED_TABLE", "twitch_pipeline.silver.silver_chat_parsed"),
         silver_features_table=os.getenv("SILVER_FEATURES_TABLE", "twitch_pipeline.silver.silver_chat_features"),
         dlq_table=os.getenv("DLQ_TABLE", "twitch_pipeline.silver.chat_dlq"),
+        ops_metrics_table=os.getenv("OPS_METRICS_TABLE", "").strip(),
         bronze_checkpoint=_require_env("BRONZE_CHECKPOINT"),
         silver_parse_checkpoint=_require_env("SILVER_PARSE_CHECKPOINT"),
         silver_features_checkpoint=_require_env("SILVER_FEATURES_CHECKPOINT"),

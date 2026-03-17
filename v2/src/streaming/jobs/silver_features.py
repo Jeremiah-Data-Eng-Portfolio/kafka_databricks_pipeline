@@ -92,6 +92,7 @@ def run(spark: Any | None = None) -> Any:
                 "table": cfg.silver_features_table,
                 "expects_canonical_silver": True,
                 "run_id": cfg.run_id,
+                "ops_metrics_table": cfg.ops_metrics_table or None,
             }
         },
     )
@@ -102,5 +103,6 @@ def run(spark: Any | None = None) -> Any:
         checkpoint_location=cfg.silver_features_checkpoint,
         run_id=cfg.run_id,
         job_name="silver_features",
+        ops_metrics_table=cfg.ops_metrics_table or None,
         available_now=True,
     )

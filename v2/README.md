@@ -165,6 +165,7 @@ Other important runtime variables used by the jobs include:
 - `SILVER_PARSED_TABLE`
 - `SILVER_FEATURES_TABLE`
 - `DLQ_TABLE`
+- `OPS_METRICS_TABLE` (optional benchmark sink: one row per micro-batch)
 - `BRONZE_CHECKPOINT`
 - `SILVER_PARSE_CHECKPOINT`
 - `SILVER_FEATURES_CHECKPOINT`
