@@ -1,4 +1,4 @@
-# v2: Streaming Reliability & Engagement Analytics Platform
+# v2: Streaming Reliability and Engagement Analytics Pipeline
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Kafka](https://img.shields.io/badge/Kafka-Confluent%20Cloud-black)
@@ -9,75 +9,94 @@
 ![Pytest](https://img.shields.io/badge/Tests-Pytest-0A9EDC)
 ![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 
-This version of the project focuses on how the pipeline would look if it were rebuilt with stronger production habits.
+This version of the project rebuilds the original Twitch chat pipeline with clearer streaming boundaries and a more defensible medallion design.
 
-It keeps the Twitch chat streaming use case, but the emphasis is different from v1. The main goals here are cleaner medallion boundaries, safer replay behavior, explicit DLQ handling, and better operational visibility.
+The focus of v2 is not adding more features than v1. The focus is making the pipeline easier to reason about operationally: Bronze stays raw, Silver owns parsing and contract enforcement, DLQ handling is explicit, and downstream analytics are built from curated outputs rather than mixed responsibilities.
 
 ## Table of Contents
 
-- [What v2 Is Meant to Show](#what-v2-is-meant-to-show)
-- [Pipeline Flow](#pipeline-flow)
-- [Silver Layer Responsibilities](#silver-layer-responsibilities)
+- [What Changed in v2](#what-changed-in-v2)
+- [Pipeline Overview](#pipeline-overview)
+- [Layer Responsibilities](#layer-responsibilities)
 - [Repository Structure](#repository-structure)
 - [Runtime and Dependency Files](#runtime-and-dependency-files)
-- [Kafka Configuration](#kafka-configuration)
+- [Kafka and Job Configuration](#kafka-and-job-configuration)
 - [Documentation](#documentation)
-- [Current Limits and Future Work](#current-limits-and-future-work)
+- [Current Scope](#current-scope)
+- [Planned Next Steps](#planned-next-steps)
 
-## What v2 Is Meant to Show
+## What Changed in v2
 
-This version is meant to signal the following:
+Compared with v1, this version emphasizes:
 
-- Bronze, Silver, and Gold have clearer responsibilities
-- Bronze stays raw and append-only
-- Silver owns the parsed contract and deduplication boundary
-- DLQ handling is explicit for parse failures and contract failures
-- Streaming observability is treated as part of the system, not an afterthought
-- Gold is framed as a stakeholder-facing data product
-- Cost and operating concerns are part of the design discussion
+- clearer Bronze, Silver, and Gold responsibilities
+- append-only raw Bronze ingest
+- Silver as the canonical parsed contract boundary
+- explicit DLQ routing for malformed or invalid records
+- separate feature derivation from parsing and deduplication logic
+- a cleaner story for replay, auditability, and downstream modeling
 
-## Pipeline Flow
+The earlier secondary enrichment consumer is not part of the main v2 architecture. It is preserved as historical context from v1 only.
 
-The high-level flow is:
+## Pipeline Overview
+
+The current end-to-end flow is:
 
 1. A Python producer captures Twitch chat events
 2. Events are sent to Kafka
-3. `bronze_ingest` lands the raw payload in Bronze
-4. `silver_parse` reads Bronze, parses the payload, validates required fields, and deduplicates on `event_id`
-5. Invalid records are written to the DLQ
-6. `silver_features` reads the canonical parsed Silver output and adds lightweight message features
+3. `bronze_ingest` writes the raw payload into a Bronze Delta table
+4. `silver_parse` reads Bronze, parses the payload, validates required fields, assigns `event_id`, and deduplicates valid records
+5. Invalid or unparseable records are written to a DLQ table
+6. `silver_features` reads the canonical parsed Silver output and derives lightweight message features
 7. dbt builds serving-layer models for downstream analysis
 
-In this version, the secondary enrichment consumer from v1 is not part of the main architecture. It is preserved as historical context only.
+## Layer Responsibilities
 
-## Silver Layer Responsibilities
+### Bronze
 
-The Silver layer is currently split into two jobs with different responsibilities.
+`bronze_ingest` is responsible for raw capture only.
 
-### `silver_parse`
+Current responsibilities:
 
-`silver_parse` is the canonical contract boundary.
+- read from Kafka
+- preserve the raw event payload
+- record ingestion metadata
+- write append-only records into Bronze
 
-It does the following:
+Bronze does not enforce the parsed contract and does not perform deduplication.
 
-- reads from the Bronze table
-- parses the raw JSON payload
-- normalizes key fields such as channel, chatter, and message text
-- assigns `event_id` from topic, partition, and offset
-- validates required fields
-- deduplicates valid records using a watermark and `dropDuplicates`
-- writes invalid or unparseable records to the DLQ
+### Silver Parse
 
-This job writes to:
+`silver_parse` is the canonical parsing and validation boundary.
+
+Current responsibilities:
+
+- read raw Bronze records
+- parse the raw JSON payload
+- normalize key fields such as channel, chatter, and message text
+- assign `event_id` from topic, partition, and offset
+- validate required fields
+- deduplicate valid records with watermark-bounded `dropDuplicates`
+- route invalid or unparseable records to the DLQ
+
+Current outputs:
 
 - `silver_parsed_table`
 - `dlq_table`
 
-### `silver_features`
+### Silver Features
 
-`silver_features` reads from the canonical parsed Silver table and derives lightweight heuristics.
+`silver_features` reads the canonical parsed Silver output and derives lightweight message-level features.
 
-It adds fields such as:
+Current responsibilities:
+
+- read from `silver_parsed_table`
+- add heuristic text features
+- write a separate append-only features table
+
+This job does not own parsing, contract enforcement, or deduplication.
+
+Current derived fields include:
 
 - `token_count`
 - `alpha_char_count`
@@ -91,24 +110,22 @@ It adds fields such as:
 - `engagement_signal`
 - `feature_processed_ts`
 
-This job does not own deduplication and does not currently merge back into the parsed table. It writes an append-only feature table instead.
-
 ## Repository Structure
 
 - `src/producer/`  
-  Producer code and config
+  Producer code and configuration
 
 - `src/streaming/jobs/`  
-  Streaming job entrypoints for Bronze, Silver, and DLQ routing
+  Streaming job entrypoints for Bronze ingest, Silver parsing, feature derivation, and DLQ routing
 
 - `src/streaming/schemas/`  
   Event schema definitions
 
 - `src/streaming/transforms/`  
-  Parsing, dedupe, feature engineering, and quality rules
+  Parsing, deduplication, feature engineering, and quality logic
 
 - `src/streaming/observability/`  
-  Freshness, volume, schema drift, and SLO utilities
+  Helper utilities for freshness, volume, schema drift, and related checks
 
 - `src/streaming/utils/`  
   Shared config and logging helpers
@@ -117,13 +134,13 @@ This job does not own deduplication and does not currently merge back into the p
   dbt project for serving-layer models
 
 - `databricks/`  
-  Databricks job YAML scaffold and notes
+  Databricks job YAML scaffold and setup notes
 
 - `docs/`  
-  Architecture notes, ADRs, runbook, observability, FinOps, and related design docs
+  Architecture notes, ADRs, runbook, observability notes, and related design docs
 
 - `tests/`  
-  Unit, integration, and data-quality test scaffolding
+  Unit, integration, and data quality test scaffolding
 
 - `dashboards/`  
   Example operational metric definitions
@@ -141,15 +158,15 @@ Notable entries include:
 
 ### `requirements-dev.txt`
 
-Local development and test extras.
+Local development and test dependencies.
 
 ### `pyproject.toml`
 
 Project metadata, package configuration, and pytest defaults.
 
-## Kafka Configuration
+## Kafka and Job Configuration
 
-For Confluent Cloud, the main settings are:
+For Confluent Cloud, the main Kafka settings are:
 
 - `KAFKA_BOOTSTRAP_SERVERS=<cluster>.confluent.cloud:9092`
 - `KAFKA_SECURITY_PROTOCOL=SASL_SSL`
@@ -157,15 +174,13 @@ For Confluent Cloud, the main settings are:
 - `API_KEY=<confluent_api_key>`
 - `API_SECRET=<confluent_api_secret>`
 
-Other important runtime variables used by the jobs include:
+Other important runtime variables include:
 
-- `RUN_ID` (explicit benchmark/run label attached to each landed micro-batch)
 - `KAFKA_RAW_TOPIC`
 - `BRONZE_TABLE`
 - `SILVER_PARSED_TABLE`
 - `SILVER_FEATURES_TABLE`
 - `DLQ_TABLE`
-- `OPS_METRICS_TABLE` (optional benchmark sink: one row per micro-batch)
 - `BRONZE_CHECKPOINT`
 - `SILVER_PARSE_CHECKPOINT`
 - `SILVER_FEATURES_CHECKPOINT`
@@ -184,12 +199,36 @@ See `.env.example` and `databricks/README.md` for the full setup pattern.
 - [`docs/future_ai_readiness.md`](docs/future_ai_readiness.md)
 - [`docs/adrs`](docs/adrs)
 
-## Current Limits and Future Work
+## Current Scope
 
-Current areas that still need work include:
+What is implemented today:
 
-- stronger runtime hardening around state and backpressure
-- more explicit checkpoint and replay playbooks
-- better integration testing with an ephemeral Kafka and Spark harness
-- better observability export into dashboards
-- add LLM-assisted context classification with emote-aware embedding features
+- raw Twitch chat ingestion into Kafka
+- append-only Bronze ingest into Delta
+- Silver parsing, validation, and deduplication
+- explicit DLQ routing for malformed or invalid records
+- separate Silver feature derivation job
+- dbt serving-layer models on top of curated outputs
+- supporting design docs, ADRs, and runbook material
+
+What is not yet fully implemented or benchmarked:
+
+- detailed runtime benchmarking across the streaming jobs
+- batch-level metric comparison between v1 and v2
+- synthetic scale testing for higher throughput and burst scenarios
+- systematic malformed-record injection for DLQ stress testing
+- cost analysis grounded in measured run data
+- stronger operational dashboards fed from job-level metrics
+
+## Planned Next Steps
+
+The next phase of the project is intended to make the operational claims more measurable.
+
+Planned work includes:
+
+- collecting benchmark metrics across `bronze_ingest`, `silver_parse`, and `silver_features`
+- adding `batch_id` to support batch-level runtime and throughput analysis
+- generating synthetic data to test higher-volume and burst-heavy workloads
+- simulating malformed records to validate DLQ routing under stress
+- comparing v1 and v2 processing behavior using measured runtime and cost inputs
+- expanding observability outputs into more concrete reliability reporting

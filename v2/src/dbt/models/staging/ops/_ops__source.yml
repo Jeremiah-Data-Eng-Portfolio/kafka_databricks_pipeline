@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: ops
+    description: Operational metrics emitted by streaming jobs.
+    database: twitch_pipeline
+    schema: ops
+
+    tables:
+      - name: streaming_batch_metrics
+        description: One row per microbatch/job write with operational metadata.

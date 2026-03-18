@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: silver
+    description: "Canonical Silver-layer streaming outputs from the Databricks pipeline"
+    database: twitch_pipeline
+    schema: silver
+    tables:
+      - name: chat_dlq
+        identifier: chat_dlq
+        description: "Dead letter queue for chat events that failed processing in the silver layer"
+       
+      - name: silver_chat_parsed
+        identifier: silver_chat_parsed
+        description: "Silver contract table for validated chat events"
+       
+      - name: silver_chat_features
+        identifier: silver_chat_features
+        description: "Silver table containing engineered features for chat events"
+      

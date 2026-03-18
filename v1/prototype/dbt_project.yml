@@ -33,6 +33,7 @@ models:
   twitch_chat_pipeline:
     # Config indicated by + and applies to all files under models/example/
     gold_marts:
+      +enabled: false
       facts:
         +materialized: table        
       dimensions:

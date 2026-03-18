@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: stg_ops__batch_metrics
+    description: "Staging model for operational microbatch metrics."
+    columns:
+      - name: run_id
+        description: "Unique identifier for the microbatch run"
+        data_tests:
+          - not_null
+      - name: job_name
+        data_tests:
+          - not_null
+      - name: batch_id
+        data_tests:
+          - not_null

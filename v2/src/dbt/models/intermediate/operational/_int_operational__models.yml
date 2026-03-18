@@ -1,0 +1,28 @@
+version: 2 
+
+models:
+    - name: int_ops_metrics__minute
+      description: "Intermediate model aggregating operational metrics to the minute level for performance analysis"
+      columns:
+        - name: job_name
+          description: "Name of the streaming job emitting the metrics"
+          data_tests:
+            - not_null
+
+        - name: event_minute
+          description: "Truncated timestamp to the minute for aggregation"
+          data_tests:
+            - not_null
+      
+    - name: int_dlq__minute
+      description: "Intermediate model aggregating dead letter queue events to the minute level for monitoring"
+      columns:
+        - name: channel
+          description: "Channel to which the chat messages belong"
+          data_tests:
+            - not_null
+
+        - name: event_minute
+          description: "Truncated timestamp to the minute for aggregation"
+          data_tests:
+            - not_null

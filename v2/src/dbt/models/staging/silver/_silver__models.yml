@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: base_silver__chat_parsed
+    description: "Source-conformed staging model for parsed chat events."
+    columns:
+      - name: event_id
+        description: "Unique identifier for the chat event, generated as a hash of Kafka metadata and message content"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: event_ts
+        description: "Timestamp of when the chat event occurred"
+    
+      - name: channel
+        description: "Channel to which the chat message belongs"
+        data_tests:
+          - not_null
+      
+      - name: chatter_id
+        description: "Unique identifier for the user who sent the chat message"
+        data_tests:
+          - not_null
+
+  - name: base_silver__chat_features
+    description: "Source-conformed staging model for heuristic chat features"
+    columns:
+      - name: event_id
+        description: "Unique identifier for the chat event, generated as a hash of Kafka metadata and message content"
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_silver__chat_dlq
+    description: "Staging model for the chat dead letter queue, containing events that failed processing in the silver layer"
+
+  - name: stg_silver__chat_parsed_joins_features
+    description: "Staging model joining parsed chat events with their corresponding features for downstream consumption"

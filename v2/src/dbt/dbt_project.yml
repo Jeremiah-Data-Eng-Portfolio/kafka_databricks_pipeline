@@ -1,4 +1,4 @@
-name: "twitch_chat_pipeline_v2"
+name: "twitch_pipeline"
 version: "1.0.0"
 profile: "twitch_chat_pipeline"
 
@@ -17,6 +17,8 @@ models:
   twitch_chat_pipeline_v2:
     staging:
       +materialized: view
+    intermediate:
+      +materialized: ephemeral
     marts:
       +materialized: table
 flags:

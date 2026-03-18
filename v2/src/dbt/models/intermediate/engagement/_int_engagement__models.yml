@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: int_chat_features__to_engagement_minute
+    description: "Intermediate model aggregating chat features to the minute level for engagement analysis"
+    columns:
+      - name: channel
+        description: "Channel to which the chat messages belong"
+        data_tests:
+          - not_null
+
+      - name: event_minute
+        description: "Truncated timestamp to the minute for aggregation"
+        data_tests:
+          - not_null
+
+  - name: int_chat_features__to_channel_daily
+    description: "Intermediate model aggregating chat features to the daily level for engagement analysis"
+    columns:
+      - name: channel
+        description: "Channel to which the chat messages belong"
+        data_tests:
+          - not_null
+
+      - name: event_date
+        description: "Truncated timestamp to the date for aggregation"
+        data_tests:
+          - not_null

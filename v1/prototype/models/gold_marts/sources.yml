@@ -1,6 +1,8 @@
 version: 2
 
+
 sources:
++enabled: false
   - name: silver
     database: workspace
     schema: twitch_pipeline_silver
