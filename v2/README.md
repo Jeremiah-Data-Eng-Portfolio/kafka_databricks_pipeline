@@ -9,23 +9,24 @@
 ![Pytest](https://img.shields.io/badge/Tests-Pytest-0A9EDC)
 ![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 
-This version of the project rebuilds the original Twitch chat pipeline with clearer streaming boundaries and a more defensible medallion design.
+This version rebuilds the original Twitch chat pipeline with clearer streaming boundaries, explicit dead-letter handling, and measured operational behavior.
 
-The focus of v2 is not adding more features than v1. The focus is making the pipeline easier to reason about operationally: Bronze stays raw, Silver owns parsing and contract enforcement, DLQ handling is explicit, and downstream analytics are built from curated outputs rather than mixed responsibilities.
+The goal of v2 is not just to preserve the end-to-end flow from v1. It is to make the pipeline easier to reason about, easier to benchmark, and easier to defend from a data engineering perspective. Bronze remains raw and append-only, Silver owns parsing and contract enforcement, feature derivation is separated from canonical parsing, and downstream dbt models expose both engagement and operational views of the system.
 
 ## Table of Contents
 
-- [What Changed in v2](#what-changed-in-v2)
+- [Why v2 Exists](#why-v2-exists)
 - [Pipeline Overview](#pipeline-overview)
 - [Layer Responsibilities](#layer-responsibilities)
+- [Operational Benchmarking and Cost Analysis](#operational-benchmarking-and-cost-analysis)
+- [Reliability and Stress Testing](#reliability-and-stress-testing)
+- [dbt Serving Layer](#dbt-serving-layer)
 - [Repository Structure](#repository-structure)
 - [Runtime and Dependency Files](#runtime-and-dependency-files)
 - [Kafka and Job Configuration](#kafka-and-job-configuration)
 - [Documentation](#documentation)
-- [Current Scope](#current-scope)
-- [Planned Next Steps](#planned-next-steps)
 
-## What Changed in v2
+## Why v2 Exists
 
 Compared with v1, this version emphasizes:
 
@@ -34,7 +35,9 @@ Compared with v1, this version emphasizes:
 - Silver as the canonical parsed contract boundary
 - explicit DLQ routing for malformed or invalid records
 - separate feature derivation from parsing and deduplication logic
-- a cleaner story for replay, auditability, and downstream modeling
+- per-job micro-batch benchmark metrics using `run_id` and `batch_id`
+- measured comparison of batch behavior and cost posture between v1 and v2
+- dbt serving models for engagement and operational reporting
 
 The earlier secondary enrichment consumer is not part of the main v2 architecture. It is preserved as historical context from v1 only.
 
@@ -48,7 +51,7 @@ The current end-to-end flow is:
 4. `silver_parse` reads Bronze, parses the payload, validates required fields, assigns `event_id`, and deduplicates valid records
 5. Invalid or unparseable records are written to a DLQ table
 6. `silver_features` reads the canonical parsed Silver output and derives lightweight message features
-7. dbt builds serving-layer models for downstream analysis
+7. dbt builds downstream serving models for engagement analysis and operational reporting
 
 ## Layer Responsibilities
 
@@ -56,11 +59,12 @@ The current end-to-end flow is:
 
 `bronze_ingest` is responsible for raw capture only.
 
-Current responsibilities:
+Responsibilities:
 
 - read from Kafka
 - preserve the raw event payload
-- record ingestion metadata
+- record ingestion metadata and source coordinates
+- stamp micro-batch operational metadata
 - write append-only records into Bronze
 
 Bronze does not enforce the parsed contract and does not perform deduplication.
@@ -69,7 +73,7 @@ Bronze does not enforce the parsed contract and does not perform deduplication.
 
 `silver_parse` is the canonical parsing and validation boundary.
 
-Current responsibilities:
+Responsibilities:
 
 - read raw Bronze records
 - parse the raw JSON payload
@@ -78,8 +82,9 @@ Current responsibilities:
 - validate required fields
 - deduplicate valid records with watermark-bounded `dropDuplicates`
 - route invalid or unparseable records to the DLQ
+- emit per-batch operational metrics for benchmark analysis
 
-Current outputs:
+Outputs:
 
 - `silver_parsed_table`
 - `dlq_table`
@@ -88,11 +93,12 @@ Current outputs:
 
 `silver_features` reads the canonical parsed Silver output and derives lightweight message-level features.
 
-Current responsibilities:
+Responsibilities:
 
 - read from `silver_parsed_table`
 - add heuristic text features
 - write a separate append-only features table
+- emit per-batch operational metrics for downstream analysis
 
 This job does not own parsing, contract enforcement, or deduplication.
 
@@ -110,6 +116,84 @@ Current derived fields include:
 - `engagement_signal`
 - `feature_processed_ts`
 
+## Operational Benchmarking and Cost Analysis
+
+v2 adds explicit batch-level operational metadata to support benchmark analysis across the three streaming jobs.
+
+Each streamed write can emit:
+
+- `_run_id`
+- `_job_name`
+- `_batch_id`
+- `_batch_processed_ts`
+
+In addition, the pipeline can write one compact benchmark row per micro-batch into `OPS_METRICS_TABLE`, including:
+
+- `run_id`
+- `job_name`
+- `batch_id`
+- `batch_processed_ts`
+- `row_count`
+- `target_table`
+
+This makes it possible to compare v1 and v2 using measured job behavior rather than only architectural intent.
+
+The benchmark and cost analysis work in this project is intended to answer questions such as:
+
+- how batch shapes differ across `bronze_ingest`, `silver_parse`, and `silver_features`
+- how the v2 split affects throughput and processing behavior compared with v1
+- how malformed-record routing affects downstream table cleanliness and replayability
+- how measured runtime behavior maps to Databricks and cloud cost inputs
+- how cost-per-million-messages changes under different workload patterns
+
+The supporting cost analysis is documented in [`docs/finops_report.md`](docs/finops_report.md).
+
+## Reliability and Stress Testing
+
+v2 is designed to be evaluated under both real and synthetic workloads.
+
+The validation approach includes:
+
+- baseline runs against real backlog data
+- synthetic scale testing to simulate higher sustained throughput
+- burst testing to observe batch behavior under sudden message spikes
+- malformed-record injection to validate DLQ routing under stress
+- batch-level comparison using `run_id` and `batch_id` metadata
+
+These tests are intended to make reliability claims more concrete, especially around:
+
+- replayability
+- bounded deduplication behavior
+- DLQ isolation of malformed or contract-invalid records
+- throughput stability under uneven traffic
+- observability of batch shape and processing volume
+
+## dbt Serving Layer
+
+The dbt project in `src/dbt/` models curated Silver outputs into downstream analytical layers.
+
+Current modeling areas include:
+
+- Silver staging models for parsed events, feature outputs, and DLQ records
+- operational staging for streaming batch metrics
+- intermediate engagement models
+- intermediate operational models
+
+The serving layer is intended to support both engagement analytics and pipeline operations.
+
+Example downstream use cases include:
+
+- engagement trend analysis
+- minute-level and daily channel rollups
+- DLQ monitoring and failure pattern analysis
+- per-job micro-batch reporting
+- stakeholder-facing metrics built from curated stream outputs
+
+Related docs:
+
+- [`docs/so_what_metrics.md`](docs/so_what_metrics.md)
+- [`docs/streaming_observability.md`](docs/streaming_observability.md)
+
 ## Repository Structure
 
 - `src/producer/`  
@@ -125,19 +209,19 @@ Current derived fields include:
   Parsing, deduplication, feature engineering, and quality logic
 
 - `src/streaming/observability/`  
-  Helper utilities for freshness, volume, schema drift, and related checks
+  Helper utilities for freshness, volume, schema drift, and SLO-style checks
 
 - `src/streaming/utils/`  
-  Shared config and logging helpers
+  Shared config, logging, and batch write helpers
 
 - `src/dbt/`  
-  dbt project for serving-layer models
+  dbt project for staging, intermediate, and serving-layer models
 
 - `databricks/`  
   Databricks job YAML scaffold and setup notes
 
 - `docs/`  
-  Architecture notes, ADRs, runbook, observability notes, and related design docs
+  Architecture notes, ADRs, runbook, observability, cost analysis, and related design docs
 
 - `tests/`  
   Unit, integration, and data quality test scaffolding
@@ -176,11 +260,13 @@ For Confluent Cloud, the main Kafka settings are:
 
 Other important runtime variables include:
 
+- `RUN_ID`
 - `KAFKA_RAW_TOPIC`
 - `BRONZE_TABLE`
 - `SILVER_PARSED_TABLE`
 - `SILVER_FEATURES_TABLE`
 - `DLQ_TABLE`
+- `OPS_METRICS_TABLE`
 - `BRONZE_CHECKPOINT`
 - `SILVER_PARSE_CHECKPOINT`
 - `SILVER_FEATURES_CHECKPOINT`
@@ -198,37 +284,3 @@ See `.env.example` and `databricks/README.md` for the full setup pattern.
 - [`docs/so_what_metrics.md`](docs/so_what_metrics.md)
 - [`docs/future_ai_readiness.md`](docs/future_ai_readiness.md)
 - [`docs/adrs`](docs/adrs)
-
-## Current Scope
-
-What is implemented today:
-
-- raw Twitch chat ingestion into Kafka
-- append-only Bronze ingest into Delta
-- Silver parsing, validation, and deduplication
-- explicit DLQ routing for malformed or invalid records
-- separate Silver feature derivation job
-- dbt serving-layer models on top of curated outputs
-- supporting design docs, ADRs, and runbook material
-
-What is not yet fully implemented or benchmarked:
-
-- detailed runtime benchmarking across the streaming jobs
-- batch-level metric comparison between v1 and v2
-- synthetic scale testing for higher throughput and burst scenarios
-- systematic malformed-record injection for DLQ stress testing
-- cost analysis grounded in measured run data
-- stronger operational dashboards fed from job-level metrics
-
-## Planned Next Steps
-
-The next phase of the project is intended to make the operational claims more measurable.
-
-Planned work includes:
-
-- collecting benchmark metrics across `bronze_ingest`, `silver_parse`, and `silver_features`
-- adding `batch_id` to support batch-level runtime and throughput analysis
-- generating synthetic data to test higher-volume and burst-heavy workloads
-- simulating malformed records to validate DLQ routing under stress
-- comparing v1 and v2 processing behavior using measured runtime and cost inputs
-- expanding observability outputs into more concrete reliability reporting

@@ -1,35 +1,51 @@
-# Streaming Reliability & Engagement Analytics Platform
+# Twitch Chat Streaming Pipeline Case Study
 
-This repository is a two-version portfolio case study for Twitch chat analytics:
+This repository contains two versions of the same Twitch chat analytics project.
 
-- `v1/prototype`: original working prototype, preserved.
-- `v2`: production-oriented architecture emphasizing reliability, data quality, observability, FinOps, and business metrics.
+- `v1/prototype`: the original end-to-end prototype
+- `v2`: a refactored version with cleaner medallion boundaries, explicit DLQ handling, operational benchmark metrics, and dbt serving models
 
-## Platform Definition
+## Repository Purpose
 
-A production-oriented Twitch chat streaming pipeline using Kafka + Spark/Databricks + Delta + dbt, with medallion separation, DLQ handling, observability, and business-facing so-what metrics.
+This repo is designed as a side-by-side case study.
+
+The `v1` prototype shows the original pipeline working end to end. The `v2` version shows how the same use case was redesigned with clearer layer ownership, a stronger streaming contract boundary, explicit dead-letter handling, batch-level operational metrics, and downstream serving models for both engagement and operational reporting.
 
 ## Repository Layout
 
-- `v1/`: preserved prototype artifacts.
-- `v2/`: production-style source organization and operational docs.
+- `v1/`  
+  Preserved prototype artifacts
+
+- `v2/`  
+  Refactored pipeline code, documentation, Databricks job scaffolding, and dbt models
 
 ## v1 vs v2
 
-### v1 (prototype)
+### v1
 
-- Demonstrates end-to-end pipeline feasibility.
-- Contains original ingestion scripts, dbt marts, and architecture images.
+The prototype version demonstrates pipeline feasibility for the Twitch chat use case.
 
-### v2 (production-oriented)
+It includes:
 
-- Explicit Bronze/Silver/Gold boundaries.
-- Raw immutable ingest + idempotent key strategy.
-- DLQ design and observability modules.
-- Stakeholder-facing Gold metrics framing.
-- FinOps and AI-readiness documentation.
+- original ingestion and transformation flow
+- prototype dbt models and outputs
+- architecture images and supporting notes
+
+### v2
+
+The refactored version focuses on a more defensible streaming design and measurable operational behavior.
+
+It includes:
+
+- append-only Bronze ingest
+- Silver parsing, validation, and deduplication
+- explicit DLQ routing for malformed or invalid records
+- separate Silver feature derivation logic
+- batch-level operational metrics using `run_id` and `batch_id`
+- dbt models for engagement and operational reporting
+- supporting architecture notes, ADRs, runbooks, and cost analysis documentation
 
 ## Start Here
 
 1. Prototype path: [`v1/prototype/README.md`](v1/prototype/README.md)
-2. Production path: [`v2/README.md`](v2/README.md)
+2. Refactored path: [`v2/README.md`](v2/README.md)

@@ -1,0 +1,242 @@
+spec_version: "1.0"
+contract_id: "twitch_chat_streaming_v2"
+contract_version: "0.1.0"
+owner:
+  name: "Jeremiah Garcia"
+  role: "repo owner"
+  contact: "portfolio artifact"
+summary: >-
+  Lightweight data contracts for the canonical Silver parsed stream, the Silver DLQ,
+  and the per-micro-batch operational metrics table used for benchmarking and cost analysis.
+change_policy:
+  breaking_change_requires:
+    - contract version bump
+    - review of downstream dbt models and dashboards
+    - runbook update if incident handling changes
+  notes:
+    - Adding nullable columns is non-breaking if downstream models are not affected.
+    - Renaming columns, changing semantics, or tightening nullability is breaking.
+
+datasets:
+  - name: "silver_chat_parsed"
+    layer: "silver"
+    table: "twitch_pipeline.silver.silver_chat_parsed"
+    purpose: "Canonical validated chat event stream used by downstream feature and dbt models"
+    grain: "One validated, deduplicated chat event per Kafka topic-partition-offset"
+    write_mode: "append"
+    upstream_sources:
+      - "twitch_pipeline.bronze.bronze_chat_raw"
+    primary_key:
+      - "event_id"
+    contract_boundary: true
+    lineage_notes:
+      - "Bronze preserves the raw Kafka payload and transport metadata."
+      - "Silver parse owns JSON parsing, required-field validation, normalization, and deduplication."
+      - "Deduplication is watermark-bounded on event_ts and keyed by event_id."
+    operational_metadata:
+      appended_columns:
+        - "_run_id"
+        - "_job_name"
+        - "_batch_id"
+        - "_batch_processed_ts"
+    schema:
+      - name: "event_id"
+        type: "string"
+        required: true
+        description: "Deterministic identifier built as source_topic:source_partition:source_offset"
+      - name: "source_topic"
+        type: "string"
+        required: true
+        description: "Kafka topic name captured during Bronze ingest"
+      - name: "source_partition"
+        type: "int"
+        required: true
+        description: "Kafka partition captured during Bronze ingest"
+      - name: "source_offset"
+        type: "long"
+        required: true
+        description: "Kafka offset captured during Bronze ingest"
+      - name: "event_ts"
+        type: "timestamp"
+        required: true
+        description: "Kafka event timestamp carried forward as event time"
+      - name: "bronze_ingestion_ts"
+        type: "timestamp"
+        required: true
+        description: "Timestamp when Bronze ingest wrote the raw record"
+      - name: "silver_processed_ts"
+        type: "timestamp"
+        required: true
+        description: "Timestamp when Silver parse produced the validated row"
+      - name: "channel"
+        type: "string"
+        required: true
+        description: "Normalized Twitch channel name"
+      - name: "chatter_id"
+        type: "string"
+        required: true
+        description: "Normalized Twitch username from the raw payload"
+      - name: "message_text"
+        type: "string"
+        required: true
+        description: "Original message text after trimming and blank-to-null normalization"
+      - name: "message_text_normalized"
+        type: "string"
+        required: false
+        description: "Lower-cased message text used for downstream heuristics"
+      - name: "message_length"
+        type: "int"
+        required: false
+        description: "Character length of message_text after normalization"
+      - name: "source_platform"
+        type: "string"
+        required: false
+        description: "Normalized platform value, defaulting to twitch when missing"
+    data_quality_rules:
+      - name: "required_fields_present"
+        expectation: "channel IS NOT NULL AND chatter_id IS NOT NULL AND message_text IS NOT NULL"
+      - name: "message_length_positive"
+        expectation: "message_length > 0"
+      - name: "event_id_unique_within_contract_output"
+        expectation: "One output row per event_id after watermark-bounded streaming dedupe"
+      - name: "contract_failures_routed_to_dlq"
+        expectation: "Rows missing required parsed fields do not land in silver_chat_parsed"
+    service_notes:
+      freshness: "Freshness is monitored operationally via streaming batch metrics and runbook procedures."
+      replayability: "Replay uses Bronze raw history plus checkpoint-aware reruns."
+      caveats:
+        - "Deduplication is bounded by the configured watermark, not infinite historical state."
+        - "Silver parse assumes Bronze transport metadata is present."
+
+  - name: "chat_dlq"
+    layer: "silver"
+    table: "twitch_pipeline.silver.chat_dlq"
+    purpose: "Operational dead-letter queue for parse and contract failures"
+    grain: "One failed record per DLQ routing event"
+    write_mode: "append"
+    upstream_sources:
+      - "twitch_pipeline.bronze.bronze_chat_raw"
+      - "twitch_pipeline.silver.silver_chat_parsed validation path"
+    operational_metadata:
+      appended_columns:
+        - "_run_id"
+        - "_job_name"
+        - "_batch_id"
+        - "_batch_processed_ts"
+    schema:
+      - name: "dlq_ingestion_ts"
+        type: "timestamp"
+        required: true
+        description: "Timestamp when the row was written to the DLQ"
+      - name: "error_category"
+        type: "string"
+        required: true
+        description: "High-level failure category"
+        allowed_values:
+          - "PARSE_ERROR"
+          - "CONTRACT_ERROR"
+          - "TYPE_ERROR"
+          - "QUALITY_ERROR"
+          - "UNKNOWN_ERROR"
+      - name: "error_code"
+        type: "string"
+        required: false
+        description: "Specific machine-readable failure code"
+      - name: "error_detail"
+        type: "string"
+        required: true
+        description: "Human-readable failure detail for triage"
+      - name: "retryable"
+        type: "boolean"
+        required: true
+        description: "Whether replay after a fix is expected to recover the record"
+      - name: "raw_payload"
+        type: "string"
+        required: true
+        description: "Original Kafka payload for triage and replay"
+      - name: "source_topic"
+        type: "string"
+        required: false
+        description: "Kafka topic when available"
+      - name: "source_partition"
+        type: "int"
+        required: false
+        description: "Kafka partition when available"
+      - name: "source_offset"
+        type: "long"
+        required: false
+        description: "Kafka offset when available"
+      - name: "source_event_ts"
+        type: "timestamp"
+        required: false
+        description: "Best available source event timestamp"
+      - name: "pipeline_stage"
+        type: "string"
+        required: true
+        description: "Pipeline stage that routed the row to DLQ"
+    data_quality_rules:
+      - name: "dlq_rows_must_include_raw_payload"
+        expectation: "raw_payload IS NOT NULL"
+      - name: "dlq_rows_must_include_error_context"
+        expectation: "error_category IS NOT NULL AND error_detail IS NOT NULL"
+      - name: "parse_failures_marked_retryable"
+        expectation: "JSON_PARSE_FAILURE rows are typically retryable after parser or schema fixes"
+    service_notes:
+      purpose_boundary: "DLQ is for triage, replay, and monitoring. It is not a downstream analytical fact table."
+      caveats:
+        - "DLQ intentionally retains failure volume and is not deduplicated."
+        - "A spike in CONTRACT_ERROR often indicates upstream schema drift or producer changes."
+
+  - name: "streaming_batch_metrics"
+    layer: "ops"
+    table: "twitch_pipeline.ops.streaming_batch_metrics"
+    purpose: "Compact per-micro-batch benchmark rows used for throughput, reliability, and cost analysis"
+    grain: "One row per job per written micro-batch"
+    write_mode: "append"
+    upstream_sources:
+      - "bronze_ingest"
+      - "silver_parse"
+      - "silver_features"
+      - "dlq_router"
+    schema:
+      - name: "run_id"
+        type: "string"
+        required: true
+        description: "Logical benchmark or execution grouping id"
+      - name: "job_name"
+        type: "string"
+        required: true
+        description: "Streaming job or routing component that emitted the metric row"
+      - name: "batch_id"
+        type: "long"
+        required: true
+        description: "Structured Streaming micro-batch id"
+      - name: "batch_processed_ts"
+        type: "timestamp"
+        required: true
+        description: "Timestamp when the batch write completed"
+      - name: "row_count"
+        type: "int"
+        required: true
+        description: "Number of rows written for the batch"
+      - name: "target_table"
+        type: "string"
+        required: true
+        description: "Physical target table written by the batch"
+    data_quality_rules:
+      - name: "run_id_present"
+        expectation: "run_id IS NOT NULL"
+      - name: "job_name_present"
+        expectation: "job_name IS NOT NULL"
+      - name: "batch_id_present"
+        expectation: "batch_id IS NOT NULL"
+      - name: "row_count_non_negative"
+        expectation: "row_count >= 0"
+    service_notes:
+      intended_uses:
+        - "Benchmarking job behavior across bronze_ingest, silver_parse, silver_features, and DLQ routing"
+        - "Batch-shape comparison between v1 and v2"
+        - "Cost-per-run and cost-per-million-message analysis"
+      caveats:
+        - "This table is an operational benchmark source, not a substitute for infrastructure-level Spark metrics."
+        - "It reflects table-write batch behavior, not end-to-end Kafka lag by itself."
