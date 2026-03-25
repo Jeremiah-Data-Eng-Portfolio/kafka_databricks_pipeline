@@ -1,28 +1,38 @@
-version: 2 
+version: 2
 
 models:
-    - name: int_ops_metrics__minute
-      description: "Intermediate model aggregating operational metrics to the minute level for performance analysis"
-      columns:
-        - name: job_name
-          description: "Name of the streaming job emitting the metrics"
-          data_tests:
-            - not_null
+  - name: int_ops_metrics__minute
+    description: "Intermediate model aggregating operational micro-batch metrics to the minute level."
+    columns:
+      - name: pipeline_stage
+        description: "Streaming job that emitted the batch metrics row."
+        data_tests:
+          - not_null
+      - name: event_minute
+        description: "Processing-time minute used as the operational aggregation grain."
+        data_tests:
+          - not_null
 
-        - name: event_minute
-          description: "Truncated timestamp to the minute for aggregation"
-          data_tests:
-            - not_null
-      
-    - name: int_dlq__minute
-      description: "Intermediate model aggregating dead letter queue events to the minute level for monitoring"
-      columns:
-        - name: pipeline_stage
-          description: "Pipeline stage to which the events belong"
-          data_tests:
-            - not_null
+  - name: int_dlq__minute
+    description: "Intermediate model aggregating DLQ events to the minute and stage grain."
+    columns:
+      - name: pipeline_stage
+        description: "Pipeline stage associated with the DLQ event."
+        data_tests:
+          - not_null
+      - name: event_minute
+        description: "Processing-time minute used as the operational aggregation grain."
+        data_tests:
+          - not_null
 
-        - name: event_minute
-          description: "Truncated timestamp to the minute for aggregation"
-          data_tests:
-            - not_null
+  - name: int_pipeline_freshness__minute
+    description: "Intermediate model carrying stage-specific freshness metrics at the minute grain."
+    columns:
+      - name: pipeline_stage
+        description: "Stage that owns the reported freshness metric."
+        data_tests:
+          - not_null
+      - name: event_minute
+        description: "Processing-time minute used to align freshness with pipeline health reporting."
+        data_tests:
+          - not_null

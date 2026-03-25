@@ -4,6 +4,12 @@ with ops as (
 
 ),
 
+freshness as (
+
+    select * from {{ ref('int_pipeline_freshness__minute') }}
+
+),
+
 dlq as (
 
     select * from {{ ref('int_dlq__minute') }}
@@ -34,10 +40,18 @@ joined as (
         coalesce(d.contract_error_count, 0) as contract_error_count,
         coalesce(d.distinct_error_code_count, 0) as distinct_error_code_count,
 
+        f.avg_event_time_to_ingest_lag_seconds,
+        f.avg_bronze_to_silver_latency_seconds,
+        f.avg_event_to_feature_latency_seconds,
+
         o.first_batch_processed_ts,
         o.last_batch_processed_ts
 
     from ops o
+    left join freshness f
+        on o.run_id = f.run_id
+       and o.event_minute = f.event_minute
+       and o.pipeline_stage = f.pipeline_stage
     left join dlq d
         on o.run_id = d.run_id
        and o.event_minute = d.event_minute
@@ -68,6 +82,10 @@ final as (
         parse_error_count,
         contract_error_count,
         distinct_error_code_count,
+
+        avg_event_time_to_ingest_lag_seconds,
+        avg_bronze_to_silver_latency_seconds,
+        avg_event_to_feature_latency_seconds,
 
         case
             when (valid_event_count + dlq_count) > 0

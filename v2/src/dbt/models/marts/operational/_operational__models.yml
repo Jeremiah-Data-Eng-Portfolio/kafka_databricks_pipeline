@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: pipeline_health_minute
+    description: "Operational mart combining throughput, DLQ, and stage-specific freshness metrics at the minute grain."
+    columns:
+      - name: minute_ts
+        description: "Processing-time minute for the pipeline health snapshot."
+        data_tests:
+          - not_null
+      - name: pipeline_stage
+        description: "Streaming job/stage represented by the health row."
+        data_tests:
+          - not_null

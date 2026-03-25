@@ -2,38 +2,39 @@ version: 2
 
 models:
   - name: base_silver__chat_parsed
-    description: "Source-conformed staging model for parsed chat events."
+    description: "Source-conformed staging model for parsed chat events from the append-only Silver parsed table."
     columns:
       - name: event_id
-        description: "Unique identifier for the chat event, generated as a hash of Kafka metadata and message content"
+        description: "Canonical technical event identifier derived from Kafka topic, partition, and offset."
         data_tests:
           - not_null
-          - unique
-
       - name: event_ts
-        description: "Timestamp of when the chat event occurred"
-    
+        description: "Kafka event timestamp carried into the Silver parsed contract."
       - name: channel
-        description: "Channel to which the chat message belongs"
+        description: "Normalized Twitch channel identifier."
         data_tests:
           - not_null
-      
       - name: chatter_id
-        description: "Unique identifier for the user who sent the chat message"
+        description: "Normalized chatter identifier."
         data_tests:
           - not_null
 
   - name: base_silver__chat_features
-    description: "Source-conformed staging model for heuristic chat features"
+    description: "Source-conformed staging model for heuristic chat features from the append-only Silver features table."
     columns:
       - name: event_id
-        description: "Unique identifier for the chat event, generated as a hash of Kafka metadata and message content"
+        description: "Canonical technical event identifier derived from Kafka topic, partition, and offset."
+        data_tests:
+          - not_null
+
+  - name: stg_silver__chat_dlq
+    description: "Staging model for the chat dead-letter queue, containing events that failed processing in the Silver layer."
+
+  - name: stg_silver__chat_parsed_joins_features
+    description: "Business-facing staging model that deduplicates repeated runs by event_id and joins the latest available features onto parsed chat events."
+    columns:
+      - name: event_id
+        description: "Canonical technical event identifier after business-facing deduplication."
         data_tests:
           - not_null
           - unique
-
-  - name: stg_silver__chat_dlq
-    description: "Staging model for the chat dead letter queue, containing events that failed processing in the silver layer"
-
-  - name: stg_silver__chat_parsed_joins_features
-    description: "Staging model joining parsed chat events with their corresponding features for downstream consumption"

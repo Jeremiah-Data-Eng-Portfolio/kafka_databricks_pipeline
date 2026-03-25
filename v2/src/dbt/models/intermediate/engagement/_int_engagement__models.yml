@@ -2,27 +2,25 @@ version: 2
 
 models:
   - name: int_chat_features__to_engagement_minute
-    description: "Intermediate model aggregating chat features to the minute level for engagement analysis"
+    description: "Intermediate minute-grain engagement rollup built from canonical parsed events plus the latest available feature enrichments."
     columns:
-      - name: channel
-        description: "Channel to which the chat messages belong"
+      - name: event_minute
+        description: "Business event-time minute for the engagement rollup."
         data_tests:
           - not_null
-
-      - name: event_minute
-        description: "Truncated timestamp to the minute for aggregation"
+      - name: channel
+        description: "Channel to which the chat messages belong."
         data_tests:
           - not_null
 
   - name: int_chat_features__to_channel_daily
-    description: "Intermediate model aggregating chat features to the daily level for engagement analysis"
+    description: "Intermediate day-grain engagement rollup built from canonical parsed events plus the latest available feature enrichments."
     columns:
-      - name: channel
-        description: "Channel to which the chat messages belong"
+      - name: event_date
+        description: "Business event-time day for the engagement rollup."
         data_tests:
           - not_null
-
-      - name: event_date
-        description: "Truncated timestamp to the date for aggregation"
+      - name: channel
+        description: "Channel to which the chat messages belong."
         data_tests:
           - not_null

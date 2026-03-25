@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: channel_engagement_minute
+    description: "Stakeholder-facing minute-grain engagement mart for near-real-time channel monitoring."
+    columns:
+      - name: minute_ts
+        description: "Business event-time minute represented by the row."
+        data_tests:
+          - not_null
+      - name: channel
+        description: "Channel to which the chat activity belongs."
+        data_tests:
+          - not_null
+
+  - name: channel_engagement_daily
+    description: "Stakeholder-facing daily engagement mart for channel-level trends and summaries."
+    columns:
+      - name: date_day
+        description: "Business event-time day represented by the row."
+        data_tests:
+          - not_null
+      - name: channel
+        description: "Channel to which the chat activity belongs."
+        data_tests:
+          - not_null
