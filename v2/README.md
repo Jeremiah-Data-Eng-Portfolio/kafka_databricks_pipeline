@@ -196,10 +196,19 @@ Example downstream use cases include:
 - per-job micro-batch reporting
 - stakeholder-facing metrics built from curated stream outputs
 
+Current measured baseline:
+
+- Full `dbt build` completed successfully for target `dev` in `26.9s`
+- Build summary: `13 models`, `25 tests`, `38 total nodes`, `33 success`, `5 no-op`
+
+This is treated as an engineering-facing serving-layer baseline rather than a stakeholder metric. It complements the streaming batch metrics by giving a lightweight end-to-end view of serving-model runtime.
+
 Related docs:
 
 - [`docs/so_what_metrics.md`](docs/so_what_metrics.md)
 - [`docs/streaming_observability.md`](docs/streaming_observability.md)
+
+The repository also includes a GitHub Actions workflow to publish the generated dbt docs site to GitHub Pages from the v2 dbt project.
 
 ## Repository Structure
 

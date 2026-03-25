@@ -79,7 +79,8 @@ Use this when comparing baseline, stress-test, or malformed-input runs.
 2. Compare `row_count` distributions by `job_name` and `batch_id`.
 3. Compare DLQ rate for each run.
 4. Review whether volume shape changes unevenly across Bronze, Silver parse, and Silver features.
-5. Use the benchmark summary as the measured input to the cost analysis.
+5. Capture the downstream `dbt build` summary for the same evaluation window so serving-layer runtime is reviewed alongside streaming behavior.
+6. Use the benchmark summary as the measured input to the cost analysis.
 
 ## Uptime Proxy Guidance
 

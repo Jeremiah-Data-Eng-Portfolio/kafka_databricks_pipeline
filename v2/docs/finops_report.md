@@ -19,6 +19,14 @@ Operational benchmark inputs:
 
 These rows are written to `OPS_METRICS_TABLE` and make it possible to compare baseline, replay, malformed-input, and stress-test runs using measured job behavior rather than architecture claims alone.
 
+Serving-layer baseline:
+
+- Full `dbt build` against target `dev` completed in `26.9s`
+- Processed `13 models` and `25 tests`
+- Result summary: `38 total`, `33 success`, `5 no-op`
+
+This is not treated as a stakeholder KPI. It is a lightweight engineering signal for end-to-end runtime awareness and helps frame serving-layer cost and freshness tradeoffs alongside the streaming job metrics.
+
 ## 2) Why Job Compute Over Interactive Clusters for Repeatable ETL
 
 For scheduled ingestion and transformation, Databricks job compute is preferred because it is easier to bound and attribute:

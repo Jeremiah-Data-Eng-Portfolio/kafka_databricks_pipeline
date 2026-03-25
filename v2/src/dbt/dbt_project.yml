@@ -1,6 +1,6 @@
-name: "twitch_pipeline"
+name: "twitch_chat_pipeline_v2"
 version: "1.0.0"
-profile: "twitch_chat_pipeline"
+profile: "twitch_chat_pipeline_v2"
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
