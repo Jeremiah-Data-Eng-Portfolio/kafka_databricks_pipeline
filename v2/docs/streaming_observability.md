@@ -50,3 +50,4 @@ Operational proxy metrics are used instead:
 - `healthy_intervals / observed_intervals * 100`
 
 These are estimated operational KPIs, not platform SLA uptime guarantees.
+Some of these implementations are future work and not entirely realized yet. 

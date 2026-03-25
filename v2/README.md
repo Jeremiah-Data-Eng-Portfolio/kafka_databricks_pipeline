@@ -13,6 +13,12 @@ This version rebuilds the original Twitch chat pipeline with clearer streaming b
 
 The goal of v2 is not just to preserve the end-to-end flow from v1. It is to make the pipeline easier to reason about, easier to benchmark, and easier to defend from a data engineering perspective. Bronze remains raw and append-only, Silver owns parsing and contract enforcement, feature derivation is separated from canonical parsing, and downstream dbt models expose both engagement and operational views of the system.
 
+## Key Artifacts
+
+- [Architecture diagram](docs/architecture.md)
+- [Data contract](contracts/data_contracts.yaml)
+- [FinOps and benchmark report](docs/finops_report.md)
+
 ## Table of Contents
 
 - [Why v2 Exists](#why-v2-exists)
@@ -144,7 +150,7 @@ The benchmark and cost analysis work in this project is intended to answer quest
 - how the v2 split affects throughput and processing behavior compared with v1
 - how malformed-record routing affects downstream table cleanliness and replayability
 - how measured runtime behavior maps to Databricks and cloud cost inputs
-- how cost-per-million-messages changes under different workload patterns
+- how cost per million messages changes under different workload patterns
 
 The supporting cost analysis is documented in [`docs/finops_report.md`](docs/finops_report.md).
 
@@ -178,6 +184,7 @@ Current modeling areas include:
 - operational staging for streaming batch metrics
 - intermediate engagement models
 - intermediate operational models
+- Gold serving models for engagement and operational reporting
 
 The serving layer is intended to support both engagement analytics and pipeline operations.
 
@@ -219,6 +226,9 @@ Related docs:
 
 - `databricks/`  
   Databricks job YAML scaffold and setup notes
+
+- `contracts/`  
+  Data contract definitions for canonical and operational datasets
 
 - `docs/`  
   Architecture notes, ADRs, runbook, observability, cost analysis, and related design docs

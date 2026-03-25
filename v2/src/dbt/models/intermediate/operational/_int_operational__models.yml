@@ -17,8 +17,8 @@ models:
     - name: int_dlq__minute
       description: "Intermediate model aggregating dead letter queue events to the minute level for monitoring"
       columns:
-        - name: channel
-          description: "Channel to which the chat messages belong"
+        - name: pipeline_stage
+          description: "Pipeline stage to which the events belong"
           data_tests:
             - not_null
 
